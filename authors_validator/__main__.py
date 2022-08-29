@@ -1,5 +1,5 @@
+import json
 from typing import Dict, List
-from unittest import result
 
 import pandas
 from unidecode import unidecode
@@ -34,15 +34,32 @@ def get_name_variations(name: str) -> List[str]:
     return variations
 
 
-def analyze(name: str, variations: List[str], names: List[str]) -> Dict:
-    analysis_result = {"name": name, "similar_names": []}
+def get_first_and_last_name(name: str) -> tuple:
+    splited_name = name.strip().split(" ")
+    if len(splited_name) == 1:
+        return name, None
+
+    return splited_name[0], splited_name[-1]
+
+
+def analyze(current_name: str, variations: List[str], names: List[str]) -> Dict:
+    similar_names = []
 
     for variation in variations:
-        for name in names:
-            if variation == name:
-                analysis_result["similar_names"].append(variation)
+        first_name, last_name = get_first_and_last_name(variation)
 
-    return analysis_result
+        for name in names:
+            if current_name == name:
+                continue
+
+            if variation == name:
+                similar_names.append(variation)
+
+            if first_name and last_name:
+                if name.startswith(first_name) and name.endswith(last_name):
+                    similar_names.append(name)
+
+    return {"name": current_name, "similar_names": list(set(similar_names))}
 
 
 def prepare_results(results: List[Dict], column: str) -> List[Dict]:
@@ -75,4 +92,4 @@ def run(file_path: str, column: str):
 
 
 if __name__ == "__main__":
-    run(file_path="data.csv", column="autores_unique")
+    run(file_path="test-data.csv", column="autores_unique")
