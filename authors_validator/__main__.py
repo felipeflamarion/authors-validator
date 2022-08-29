@@ -4,6 +4,9 @@ from typing import Dict, List
 import pandas
 from unidecode import unidecode
 
+IGNORE_FIRST_NAMES_LIST = []
+IGNORE_LAST_NAMES_LIST = []
+
 
 def get_names(df: object, column: str) -> List[str]:
     authors = df[df[column].notnull()][column]
@@ -42,9 +45,8 @@ def get_first_and_last_name(name: str) -> tuple:
     return splited_name[0], splited_name[-1]
 
 
-def analyze(current_name: str, variations: List[str], names: List[str]) -> Dict:
+def analyze(current_name: str, variations: List[str], names: List[str]) -> List:
     similar_names = []
-
     for variation in variations:
         first_name, last_name = get_first_and_last_name(variation)
 
@@ -56,22 +58,22 @@ def analyze(current_name: str, variations: List[str], names: List[str]) -> Dict:
                 similar_names.append(variation)
 
             if first_name and last_name:
-                if name.startswith(first_name) and name.endswith(last_name):
+                if (
+                    first_name not in IGNORE_FIRST_NAMES_LIST
+                    and last_name not in IGNORE_LAST_NAMES_LIST
+                    and name.startswith(first_name)
+                    and name.endswith(last_name)
+                ):
                     similar_names.append(name)
 
-    return {"name": current_name, "similar_names": list(set(similar_names))}
+    if similar_names:
+        similar_names = [current_name, *similar_names]
+
+    return similar_names
 
 
 def prepare_results(results: List[Dict], column: str) -> List[Dict]:
-    prepared_results = []
-
-    for result in results:
-        if len(result["similar_names"]) > 1:
-            prepared_results.extend(
-                [{column: similar_name} for similar_name in result["similar_names"]]
-            )
-
-    return prepared_results
+    return list(map(lambda result: {column: result}, results))
 
 
 def save_results(results: List[Dict]):
@@ -85,11 +87,12 @@ def run(file_path: str, column: str):
 
     results = []
     for name in all_names:
-        variations = get_name_variations(name)
-        results.append(analyze(name, variations, all_names))
+        if name not in results:
+            variations = get_name_variations(name)
+            results.extend(analyze(name, variations, all_names))
 
     save_results(prepare_results(results, column))
 
 
 if __name__ == "__main__":
-    run(file_path="test-data.csv", column="autores_unique")
+    run(file_path="data.csv", column="autores_unique")
